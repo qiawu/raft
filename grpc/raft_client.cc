@@ -20,9 +20,7 @@
 #include <memory>
 #include <string>
 
-#include <grpcpp/grpcpp.h>
-
-#include "raft.grpc.pb.h"
+#include "raft_client.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -31,48 +29,42 @@ using raft::ClientRequest;
 using raft::ClientResponse;
 using raft::RaftService;
 
-class RaftClient {
- public:
-  RaftClient(std::shared_ptr<Channel> channel)
+raft::RaftClient::RaftClient(std::shared_ptr<Channel> channel)
       : stub_(RaftService::NewStub(channel)) {}
 
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
-  std::string SendRequest(const std::string& user) {
-    // Data we are sending to the server.
-    ClientRequest request;
-    request.set_message(user);
+std::string raft::RaftClient::SendRequest(const std::string& user) {
+  // Data we are sending to the server.
+  ClientRequest request;
+  request.set_message(user);
 
-    // Container for the data we expect from the server.
-    ClientResponse reply;
+  // Container for the data we expect from the server.
+  ClientResponse reply;
 
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
-    ClientContext context;
+  // Context for the client. It could be used to convey extra information to
+  // the server and/or tweak certain RPC behaviors.
+  ClientContext context;
 
-    // The actual RPC.
-    Status status = stub_->HandleClientRequest(&context, request, &reply);
+  // The actual RPC.
+  Status status = stub_->HandleClientRequest(&context, request, &reply);
 
-    // Act upon its status.
-    if (status.ok()) {
-      return reply.message();
-    } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      return "RPC failed";
-    }
+  // Act upon its status.
+  if (status.ok()) {
+    return reply.message();
+  } else {
+    std::cout << status.error_code() << ": " << status.error_message()
+              << std::endl;
+    return "RPC failed";
   }
-
- private:
-  std::unique_ptr<RaftService::Stub> stub_;
-};
+}
 
 int main(int argc, char** argv) {
   // Instantiate the client. It requires a channel, out of which the actual RPCs
   // are created. This channel models a connection to an endpoint (in this case,
   // localhost at port 50051). We indicate that the channel isn't authenticated
   // (use of InsecureChannelCredentials()).
-  RaftClient client(grpc::CreateChannel(
+  raft::RaftClient client(grpc::CreateChannel(
       "localhost:50051", grpc::InsecureChannelCredentials()));
   std::string user("world");
   std::string reply = client.SendRequest(user);

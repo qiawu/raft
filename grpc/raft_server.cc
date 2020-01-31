@@ -20,31 +20,31 @@
 #include <memory>
 #include <string>
 
-#include <grpcpp/grpcpp.h>
-
-#include "raft.grpc.pb.h"
+#include "raft_server.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
-using raft::ClientRequest;
-using raft::ClientResponse;
-using raft::RaftService;
 
-// Logic and data behind the server's behavior.
-class RaftServiceImpl final : public RaftService::Service {
-  Status HandleClientRequest(ServerContext* context, const ClientRequest* request,
-                  ClientResponse* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->message());
-    return Status::OK;
-  }
-};
+Status raft::RaftServiceImpl::HandleClientRequest(ServerContext* context, const raft::ClientRequest* request,
+                raft::ClientResponse* reply) {
+  std::string prefix("Hello ");
+  reply->set_message(prefix + request->message());
+  return Status::OK;
+}
+Status raft::RaftServiceImpl::HandleVote(ServerContext* context, const raft::VoteRequest* request,
+                raft::VoteResponse* reply) {
+  return Status::OK;
+}
+Status raft::RaftServiceImpl::HandleReplication(ServerContext* context, const raft::ReplicateRequest* request,
+                raft::ReplicateResponse* reply) {
+  return Status::OK;
+}
 
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  RaftServiceImpl service;
+  raft::RaftServiceImpl service;
 
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.

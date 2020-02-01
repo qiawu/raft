@@ -6,14 +6,18 @@
 namespace raft {
   enum class Code {
     OK,
-    ERROR
+    ERROR,
+    INVALID_FORMAT
   };
 
   class Status {
     public:
       Status(Code c, const std::string& msg);
       bool ok();
+      std::string ToString();
       static Status OK();
+      static Status Error(const std::string& msg);
+      static Status InvalidFormat(const std::string& msg);
     private:
       Code code_;
       std::string msg_;

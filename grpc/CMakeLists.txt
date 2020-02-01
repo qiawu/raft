@@ -97,11 +97,11 @@ add_custom_command(
       DEPENDS "${raft_proto}")
 
 # Include generated *.pb.h files
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+#include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 foreach(_target
   raft_client raft_server)
-  add_executable(${_target} "${_target}.cc"
+  add_library(${_target} "${_target}.cc"
     ${raft_proto_srcs}
     ${raft_grpc_srcs})
   target_link_libraries(${_target}

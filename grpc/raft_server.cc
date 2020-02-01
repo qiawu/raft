@@ -25,21 +25,22 @@
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
-using grpc::Status;
 
-Status raft::RaftServiceImpl::HandleClientRequest(ServerContext* context, const raft::ClientRequest* request,
+grpc::Status raft::RaftServiceImpl::HandleClientRequest(ServerContext* context, const raft::ClientRequest* request,
                 raft::ClientResponse* reply) {
   std::string prefix("Hello ");
   reply->set_message(prefix + request->message());
-  return Status::OK;
+  return grpc::Status::OK;
 }
-Status raft::RaftServiceImpl::HandleVote(ServerContext* context, const raft::VoteRequest* request,
+
+grpc::Status raft::RaftServiceImpl::HandleVote(ServerContext* context, const raft::VoteRequest* request,
                 raft::VoteResponse* reply) {
-  return Status::OK;
+  return grpc::Status::OK;
 }
-Status raft::RaftServiceImpl::HandleReplication(ServerContext* context, const raft::ReplicateRequest* request,
+
+grpc::Status raft::RaftServiceImpl::HandleReplication(ServerContext* context, const raft::ReplicateRequest* request,
                 raft::ReplicateResponse* reply) {
-  return Status::OK;
+  return grpc::Status::OK;
 }
 
 void RunServer() {
@@ -61,8 +62,10 @@ void RunServer() {
   server->Wait();
 }
 
+/*
 int main(int argc, char** argv) {
   RunServer();
 
   return 0;
 }
+*/

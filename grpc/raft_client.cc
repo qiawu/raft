@@ -59,6 +59,7 @@ std::string raft::RaftClient::SendRequest(const std::string& user) {
   }
 }
 
+/*
 int main(int argc, char** argv) {
   // Instantiate the client. It requires a channel, out of which the actual RPCs
   // are created. This channel models a connection to an endpoint (in this case,
@@ -72,3 +73,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+*/

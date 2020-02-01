@@ -7,6 +7,10 @@
 #include "logger.h"
 #include "utils.h"
 
+const std::string raft::Configuration::kNodeListSectionHeader = "nodelist";
+const std::string raft::Configuration::kLocalSectionHeader = "local";
+const std::string raft::Configuration::kLocalNamePropertyKey = "name";
+
 raft::Status raft::Configuration::Parse() {
   // TODO: handle file exception
   std::ifstream fs;
@@ -45,6 +49,16 @@ raft::Status raft::Configuration::Parse() {
   }
   fs.close();
   return Status::OK();
+}
+
+std::map<std::string, std::string> raft::Configuration::GetPropertiesBySection(const std::string& section_name) {
+  auto it = std::find(sections_.begin(), sections_.end(), section_name);
+  if (it != sections_.end()) {
+    uint32_t index = std::distance(sections_.begin(), it);
+    return props_[index];
+  } else {
+    return std::map<std::string, std::string>();
+  }
 }
 
 void raft::Configuration::PrettyPrint() {

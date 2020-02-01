@@ -24,3 +24,7 @@ raft::Status raft::Status::Error(const std::string& msg) {
 raft::Status raft::Status::InvalidFormat(const std::string& msg) {
   return Status(Code::INVALID_FORMAT, msg);
 }
+
+raft::Status raft::Status::InvalidArg(const std::string& msg) {
+  return Status(Code::INVALID_ARG, msg);
+}

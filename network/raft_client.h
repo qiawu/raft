@@ -8,7 +8,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "grpc/raft.grpc.pb.h"
+#include "network/raft.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;

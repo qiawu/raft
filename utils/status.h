@@ -7,7 +7,8 @@ namespace raft {
   enum class Code {
     OK,
     ERROR,
-    INVALID_FORMAT
+    INVALID_FORMAT,
+    INVALID_ARG
   };
 
   class Status {
@@ -18,6 +19,7 @@ namespace raft {
       static Status OK();
       static Status Error(const std::string& msg);
       static Status InvalidFormat(const std::string& msg);
+      static Status InvalidArg(const std::string& msg);
     private:
       Code code_;
       std::string msg_;

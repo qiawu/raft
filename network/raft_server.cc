@@ -26,37 +26,37 @@ using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 
-grpc::Status raft::RaftServiceImpl::CallToCluster(ServerContext* context, const raft::ClientRequest* request,
+grpc::Status raft::RaftServer::CallToCluster(ServerContext* context, const raft::ClientRequest* request,
     raft::ClientResponse* reply) {
   std::string prefix("Hello ");
   reply->set_message(prefix + request->message());
   return grpc::Status::OK;
 }
 
-grpc::Status raft::RaftServiceImpl::AskForVote(ServerContext* context, const raft::VoteRequest* request,
+grpc::Status raft::RaftServer::AskForVote(ServerContext* context, const raft::VoteRequest* request,
     raft::GeneralResponse* reply) {
   return grpc::Status::OK;
 }
 
-grpc::Status raft::RaftServiceImpl::VoteForElection(ServerContext* context, const raft::VoteInfo* vote,
+grpc::Status raft::RaftServer::VoteForElection(ServerContext* context, const raft::VoteInfo* vote,
     raft::GeneralResponse* reply) {
   return grpc::Status::OK;
 }
 
-grpc::Status raft::RaftServiceImpl::ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
+grpc::Status raft::RaftServer::ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
     raft::GeneralResponse* reply) {
   return grpc::Status::OK;
 }
-void RunServer() {
-  std::string server_address("0.0.0.0:50051");
-  raft::RaftServiceImpl service;
+
+raft::Status raft::RaftServer::Start() {
+  std::string server_address(addr_.GetIP() + ":" + addr_.GetPort());
 
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
   // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterService(&service);
+  builder.RegisterService(this);
   // Finally assemble the server.
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
@@ -64,6 +64,7 @@ void RunServer() {
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
   server->Wait();
+  return Status::OK();
 }
 
 /*

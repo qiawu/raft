@@ -26,23 +26,27 @@ using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 
-grpc::Status raft::RaftServiceImpl::HandleClientRequest(ServerContext* context, const raft::ClientRequest* request,
-                raft::ClientResponse* reply) {
+grpc::Status raft::RaftServiceImpl::CallToCluster(ServerContext* context, const raft::ClientRequest* request,
+    raft::ClientResponse* reply) {
   std::string prefix("Hello ");
   reply->set_message(prefix + request->message());
   return grpc::Status::OK;
 }
 
-grpc::Status raft::RaftServiceImpl::HandleVote(ServerContext* context, const raft::VoteRequest* request,
-                raft::VoteResponse* reply) {
+grpc::Status raft::RaftServiceImpl::AskForVote(ServerContext* context, const raft::VoteRequest* request,
+    raft::GeneralResponse* reply) {
   return grpc::Status::OK;
 }
 
-grpc::Status raft::RaftServiceImpl::HandleReplication(ServerContext* context, const raft::ReplicateRequest* request,
-                raft::ReplicateResponse* reply) {
+grpc::Status raft::RaftServiceImpl::VoteForElection(ServerContext* context, const raft::VoteInfo* vote,
+    raft::GeneralResponse* reply) {
   return grpc::Status::OK;
 }
 
+grpc::Status raft::RaftServiceImpl::ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
+    raft::GeneralResponse* reply) {
+  return grpc::Status::OK;
+}
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
   raft::RaftServiceImpl service;

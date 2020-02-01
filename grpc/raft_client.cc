@@ -47,7 +47,7 @@ std::string raft::RaftClient::SendRequest(const std::string& user) {
   ClientContext context;
 
   // The actual RPC.
-  Status status = stub_->HandleClientRequest(&context, request, &reply);
+  Status status = stub_->CallToCluster(&context, request, &reply);
 
   // Act upon its status.
   if (status.ok()) {

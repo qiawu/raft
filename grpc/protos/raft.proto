@@ -24,11 +24,13 @@ package raft;
 // The Raft service definition.
 service RaftService {
   // handle client request
-  rpc HandleClientRequest(ClientRequest) returns (ClientResponse) {}
-  // handle election vote request
-  rpc HandleVote(VoteRequest) returns (VoteResponse) {}
+  rpc CallToCluster(ClientRequest) returns (ClientResponse) {}
+  // TODO: use async call inside cluster. 
+  // For now, we split each call to two methods, both return GeneralResponse just to indicate whether is the message is received
+  rpc AskForVote(VoteRequest) returns (GeneralResponse) {}
+  rpc VoteForElection(VoteInfo) returns (GeneralResponse) {}
   // handle replication request
-  rpc HandleReplication(ReplicateRequest) returns (ReplicateResponse) {}
+  rpc ReplicateLogEntry(LogEntry) returns (GeneralResponse) {}
 }
 
 message ClientRequest {
@@ -39,17 +41,21 @@ message ClientResponse {
   string message = 1;
 }
 
+message GeneralResponse {
+  bool ok = 1;
+}
+
 message VoteRequest {
   string ip = 1;
   int32 cur_term = 2;
   int32 cur_index = 3;
 }
 
-message VoteResponse {
-  string message = 1;
+message VoteInfo {
+  bool grant_or_deny = 1;
 }
 
-message ReplicateRequest {
+message LogEntry {
   string ip = 1;
   int32 cur_term = 2;
   int32 cur_index = 3;
@@ -57,6 +63,7 @@ message ReplicateRequest {
   int32 prev_index = 5;
   int32 commited_term = 6;
   int32 commited_index = 7;
+  string data = 8;
 }
 
 message ReplicateResponse {

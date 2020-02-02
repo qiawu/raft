@@ -12,6 +12,7 @@ namespace raft {
 
       std::string GetIP() { return ip_; }
       std::string GetPort() { return port_; }
+      std::string ToString();
     private:
       std::string ip_;
       std::string port_;

@@ -3,7 +3,7 @@
 
 namespace raft {
   struct Message {
-    std::string msg_;
+    std::string msg;
   };
   struct ClientRequestMessage : public Message {
   };

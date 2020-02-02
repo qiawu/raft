@@ -14,3 +14,7 @@ raft::Status raft::NodeAddress::ParseNodeAddress(const std::string& raw, raft::N
   out_addr.port_ = ip_and_port[1];
   return Status::OK();
 }
+
+std::string raft::NodeAddress::ToString() {
+  return Utils::StringFormat("%s:%s", ip_.c_str(), port_.c_str());
+}

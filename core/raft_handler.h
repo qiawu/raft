@@ -2,6 +2,8 @@
 #ifndef RAFT_HANDLER_H
 #define RAFT_HANDLER_H
 
+#include <memory>
+
 #include "utils/status.h"
 
 namespace raft {
@@ -14,10 +16,10 @@ namespace raft {
   };
   class RaftHandler {
     public:
-      RaftHandler(RaftNode* node, HandlerType type): host_node_(node), type_(type) {};
+      RaftHandler(RaftNode* node, HandlerType type);
       virtual Status Init() = 0;
       virtual Status HandleMessage() = 0;
-      virtual ~RaftHandler() {};
+      virtual ~RaftHandler();
       
       HandlerType GetType() { return type_; }
 
@@ -25,7 +27,7 @@ namespace raft {
       virtual Status AddReplicateLog() = 0;
       virtual Status CommitReplicateLog() = 0;
       HandlerType type_;
-      RaftNode* host_node_;
+      std::unique_ptr<RaftNode> host_node_;
   };
 }
 

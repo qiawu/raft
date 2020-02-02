@@ -5,11 +5,13 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <functional>
 
 #include <grpcpp/grpcpp.h>
 
 #include "network/raft.grpc.pb.h"
 #include "node_address.h"
+#include "message.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -19,7 +21,8 @@ namespace raft {
   // Logic and data behind the server's behavior.
   class RaftServer final : public raft::RaftService::Service {
     public:
-      RaftServer(const NodeAddress& addr): addr_(addr) {}
+      RaftServer(const NodeAddress& addr, std::function<Status(const Message&)> callback): addr_(addr), callback_(callback) {}
+      ~RaftServer();
       Status Start();
       grpc::Status CallToCluster(ServerContext* context, const raft::ClientRequest* request,
           raft::ClientResponse* reply) override;
@@ -31,6 +34,8 @@ namespace raft {
           raft::GeneralResponse* reply) override;
     private:
       NodeAddress addr_;
+      std::function<Status(const Message&)> callback_;
+      std::unique_ptr<Server> bg_runner_;
   };
 
 }

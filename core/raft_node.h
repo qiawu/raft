@@ -2,13 +2,15 @@
 #ifndef RAFT_NODE_H
 #define RAFT_NODE_H
 
+#include <memory>
+
 #include "network/raft_server.h"
 #include "network/raft_client.h"
 #include "network/node_address.h"
+#include "network/message.h"
 #include "utils/status.h"
 #include "raft_handler.h"
 #include "node_identity.h"
-#include "message.h"
 
 namespace raft {
   class RaftNode {
@@ -25,9 +27,9 @@ namespace raft {
     private:
       Status LoadConf(const std::string& conf_path);
 
-      RaftHandler* handler_;
-      RaftClient* raft_client_;
-      RaftServer* raft_server_;
+      std::unique_ptr<RaftHandler> handler_;
+      std::unique_ptr<RaftClient> raft_client_;
+      std::unique_ptr<RaftServer> raft_server_;
 
       std::map<std::string, NodeAddress> node_list_;
       std::string local_name_;

@@ -1,19 +1,19 @@
 
 #include "raft_node.h"
 
+#include <functional>
+
 #include "utils/configuration.h"
 
 raft::RaftNode::~RaftNode() {
-  delete handler_;
-  delete raft_server_;
-  delete raft_client_;
 }
+
 raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
   Status s = LoadConf(conf_path);
   if (!s.ok()) {
     return s;
   }
-  raft_server_ = new RaftServer(node_list_[local_name_]);
+  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::OnMessage, this, std::placeholders::_1)));
   raft_server_->Start();
   return s;
 }

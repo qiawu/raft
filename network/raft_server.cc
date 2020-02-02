@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "raft_server.h"
 #include "utils/utils.h"
@@ -18,6 +19,16 @@ raft::RaftServer::~RaftServer() {
   }
 }
 
+raft::Status raft::RaftServer::GetClientAddress(ServerContext* context, NodeAddress& out_addr) {
+  std::string peer_raw = context->peer();
+  auto res = Utils::Split(peer_raw, ":");
+  if (res.size() != 3) {
+    return Status::InvalidArg(Utils::StringFormat("invalid client ip %s", peer_raw.c_str()));
+  }
+
+  return NodeAddress::ParseNodeAddress(Utils::StringFormat("%s:%s", res[1].c_str(), res[2].c_str()), out_addr);
+}
+
 grpc::Status raft::RaftServer::CallToCluster(ServerContext* context, const raft::ClientRequest* request,
     raft::ClientResponse* reply) {
   std::string prefix("Hello ");
@@ -27,6 +38,13 @@ grpc::Status raft::RaftServer::CallToCluster(ServerContext* context, const raft:
 
 grpc::Status raft::RaftServer::AskForVote(ServerContext* context, const raft::VoteRequest* request,
     raft::GeneralResponse* reply) {
+  NodeAddress addr;
+  Status s = GetClientAddress(context, addr);
+  if (!s.ok()) {
+    return grpc::Status(grpc::StatusCode::UNKNOWN, "invalid client ip");
+  }
+  auto msg = new VoteRequestMessage(addr, request->node_name(), request->cur_term(), request->cur_index());
+  callback_(msg);
   return grpc::Status::OK;
 }
 

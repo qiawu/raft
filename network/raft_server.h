@@ -21,7 +21,7 @@ namespace raft {
   // Logic and data behind the server's behavior.
   class RaftServer final : public raft::RaftService::Service {
     public:
-      RaftServer(const NodeAddress& addr, std::function<Status(const Message&)> callback): addr_(addr), callback_(callback) {}
+      RaftServer(const NodeAddress& addr, std::function<Status(Message*)> callback): addr_(addr), callback_(callback) {}
       ~RaftServer();
       Status Start();
       grpc::Status CallToCluster(ServerContext* context, const raft::ClientRequest* request,
@@ -33,8 +33,10 @@ namespace raft {
       grpc::Status ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
           raft::GeneralResponse* reply) override;
     private:
+      Status GetClientAddress(ServerContext* context, NodeAddress& out_addr);
+
       NodeAddress addr_;
-      std::function<Status(const Message&)> callback_;
+      std::function<Status(Message*)> callback_;
       std::unique_ptr<Server> bg_runner_;
   };
 

@@ -6,6 +6,8 @@
 #include "utils/configuration.h"
 
 raft::RaftNode::~RaftNode() {
+  is_node_shutting_down_ = true;
+  bg_msg_processor_.join();
 }
 
 raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
@@ -13,8 +15,9 @@ raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
   if (!s.ok()) {
     return s;
   }
-  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::OnMessage, this, std::placeholders::_1)));
+  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::SubmitMessage, this, std::placeholders::_1)));
   raft_server_->Start();
+  bg_msg_processor_ = std::thread(&RaftNode::ProcessMessages, this);
   return s;
 }
 
@@ -43,7 +46,27 @@ raft::Status raft::RaftNode::LoadConf(const std::string& conf_path) {
   }
 }
 
-raft::Status raft::RaftNode::OnMessage(const Message& msg) {
+void raft::RaftNode::ProcessMessages() {
+  const int max_wait_time = 1000;
+  while(true) {
+    if (is_node_shutting_down_) {
+      break;
+    }
+    Message* msg = nullptr;
+    bool has_val = msg_queue_.TryWaitAndPop(msg, max_wait_time);
+    if (has_val) {
+      HandleMessage(*msg);
+    }
+  }
+}
+
+raft::Status raft::RaftNode::SubmitMessage(Message* msg) {
+  // TODO: set queue limit
+  msg_queue_.Push(msg);
+  return Status::OK();
+}
+
+raft::Status raft::RaftNode::HandleMessage(const Message& msg) {
   return Status::OK();
 
 }

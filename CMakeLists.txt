@@ -17,3 +17,7 @@ target_link_libraries(raft_main
   raft_core
   raft_network
   raft_utils)
+add_executable(raft_client_main "client_main.cc")
+target_link_libraries(raft_client_main
+  raft_network
+  raft_utils)

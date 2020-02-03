@@ -4,6 +4,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "network/raft.grpc.pb.h"
+#include "message.h"
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -13,11 +14,14 @@ using grpc::ServerCompletionQueue;
 
 namespace raft {
 
+  typedef std::function<void(Message*)> ResponseCBFunc;
+  typedef std::function<Status(Message* req, ResponseCBFunc resp_cb)> HandleFunc;
 
   enum CallStatus { REQUEST, FINISH };
 
   struct CallData {
-    CallData(RaftService::AsyncService* service, grpc::ServerCompletionQueue* cq) : service_(service), cq_(cq) {}
+    CallData(HandleFunc handle_func, RaftService::AsyncService* service, grpc::ServerCompletionQueue* cq) : handle_func_(handle_func), service_(service), cq_(cq) {}
+    HandleFunc handle_func_;
     RaftService::AsyncService* service_;
     grpc::ServerCompletionQueue* cq_;
   };
@@ -26,8 +30,14 @@ namespace raft {
   // the completion queue and call Proceed() on them.
   class RemoteCall {
     public:
-      RemoteCall(CallData* data): data_(data) {}
+      RemoteCall(CallData* data): data_(data), req_wrapper_(nullptr) {}
+      ~RemoteCall() {
+        delete req_wrapper_;
+      }
+      // process the message
       virtual void Proceed(bool ok) = 0;
+      // notify caller after the message is processed
+      virtual void NotifyCaller(Message* reply_wrapper_) = 0;
 
     protected:
       CallData* data_;
@@ -35,12 +45,14 @@ namespace raft {
       // of compression, authentication, as well as to send metadata back to the
       // client.
       grpc::ServerContext ctx_;
+      Message* req_wrapper_;
   };
 
   class ClientCall : public RemoteCall {
     public:
       explicit ClientCall(CallData* data);
       void Proceed(bool ok) override;
+      void NotifyCaller(Message* reply_wrapper_) override;
 
     private:
       grpc::Status CallToCluster(ServerContext* context, const raft::ClientRequest* request, raft::ClientResponse* reply);
@@ -57,6 +69,7 @@ namespace raft {
     public:
       explicit ElectionCall(CallData* data);
       void Proceed(bool ok) override;
+      void NotifyCaller(Message* reply_wrapper_) override;
 
     private:
       grpc::Status AskForVote();
@@ -73,6 +86,7 @@ namespace raft {
     public:
       explicit ReplicateCall(CallData* data);
       void Proceed(bool ok) override;
+      void NotifyCaller(Message* reply_wrapper_) override;
 
     private:
       grpc::Status ReplicateLogEntry();

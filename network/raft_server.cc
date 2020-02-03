@@ -55,7 +55,7 @@ raft::Status raft::RaftServer::Start() {
 
 void raft::RaftServer::HandleRpcs() {
   // Spawn a new CallData instance to serve new clients.
-  CallData data(&async_service_, async_cq_.get());
+  CallData data(handle_func_, &async_service_, async_cq_.get());
   new ClientCall(&data);
   new ElectionCall(&data);
   new ReplicateCall(&data);

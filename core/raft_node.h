@@ -10,12 +10,21 @@
 #include "network/raft_client.h"
 #include "network/node_address.h"
 #include "network/message.h"
+#include "network/call_data.h"
 #include "utils/status.h"
 #include "utils/blocking_queue.h"
 #include "raft_handler.h"
 #include "node_identity.h"
 
 namespace raft {
+  struct QueueItem {
+    public:
+      QueueItem(): msg_(nullptr), cb_(nullptr) {}
+      QueueItem(Message* msg, ResponseCBFunc cb): msg_(msg), cb_(cb) {}
+      Message* msg_;
+      ResponseCBFunc cb_;
+  };
+
   class RaftNode {
     public:
       RaftNode(): is_node_shutting_down_(false), handler_(nullptr), raft_client_(nullptr), raft_server_(nullptr), node_list_(), local_name_() {} 
@@ -23,9 +32,9 @@ namespace raft {
       Status Initialize(const std::string& conf_path);
       void ProcessMessages();
       // submit to queue
-      Status SubmitMessage(Message* msg);
+      Status SubmitMessage(Message* msg, ResponseCBFunc cb);
       // this is the only entry to invoke handler
-      Status HandleMessage(const Message& msg);
+      Message HandleMessage(const Message& req);
       // this is the only entry the handler can talk to RaftNode
       Status SendMessage(const NodeIdentify& receiver, uint32_t sec_timeout, uint32_t retry_times);
       
@@ -33,7 +42,7 @@ namespace raft {
     private:
       Status LoadConf(const std::string& conf_path);
 
-      BlockingQueue<Message*> msg_queue_;
+      BlockingQueue<QueueItem> msg_queue_;
       std::thread bg_msg_processor_;
       std::atomic<bool> is_node_shutting_down_;
 

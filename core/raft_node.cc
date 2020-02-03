@@ -18,7 +18,7 @@ raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
   if (!s.ok()) {
     return s;
   }
-  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::SubmitMessage, this, std::placeholders::_1)));
+  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::SubmitMessage, this, std::placeholders::_1, std::placeholders::_2)));
   raft_server_->Start();
   bg_msg_processor_ = std::thread(&RaftNode::ProcessMessages, this);
   return s;
@@ -55,23 +55,24 @@ void raft::RaftNode::ProcessMessages() {
     if (is_node_shutting_down_) {
       break;
     }
-    Message* msg = nullptr;
-    bool has_val = msg_queue_.TryWaitAndPop(msg, max_wait_time);
+    QueueItem item;
+    bool has_val = msg_queue_.TryWaitAndPop(item, max_wait_time);
     if (has_val) {
-      HandleMessage(*msg);
+      Message* req = item.msg_;
+      Message resp = HandleMessage(*req);
+      item.cb_(&resp);
     }
   }
 }
 
-raft::Status raft::RaftNode::SubmitMessage(Message* msg) {
+raft::Status raft::RaftNode::SubmitMessage(Message* msg, ResponseCBFunc cb) {
   // TODO: set queue limit
-  msg_queue_.Push(msg);
+  msg_queue_.Push(QueueItem(msg, cb));
   return Status::OK();
 }
 
-raft::Status raft::RaftNode::HandleMessage(const Message& msg) {
-  return Status::OK();
-
+raft::Message raft::RaftNode::HandleMessage(const Message& req) {
+  return Message("done");
 }
 
 raft::Status raft::RaftNode::SendMessage(const NodeIdentify& receiver, uint32_t sec_timeout, uint32_t retry_times) {

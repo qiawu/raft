@@ -13,12 +13,13 @@
 #include "network/raft.grpc.pb.h"
 #include "node_address.h"
 #include "message.h"
+#include "call_data.h"
 
 namespace raft {
   // Logic and data behind the server's behavior.
   class RaftServer {
     public:
-      RaftServer(const NodeAddress& addr, std::function<Status(Message*)> callback): addr_(addr), callback_(callback), is_server_shutting_down_(false) {}
+      RaftServer(const NodeAddress& addr, HandleFunc handle_func): addr_(addr), handle_func_(handle_func), is_server_shutting_down_(false) {}
       ~RaftServer();
       Status Start();
       Status Shutdown();
@@ -27,7 +28,7 @@ namespace raft {
       void HandleRpcs();
 
       NodeAddress addr_;
-      std::function<Status(Message*)> callback_;
+      HandleFunc handle_func_;
 
       RaftService::AsyncService async_service_;
       std::unique_ptr<grpc::Server> async_server_;

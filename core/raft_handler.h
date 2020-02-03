@@ -27,7 +27,7 @@ namespace raft {
       virtual Status AddReplicateLog() = 0;
       virtual Status CommitReplicateLog() = 0;
       HandlerType type_;
-      std::unique_ptr<RaftNode> host_node_;
+      RaftNode* host_node_;
   };
 }
 

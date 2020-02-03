@@ -8,6 +8,9 @@
 raft::RaftNode::~RaftNode() {
   is_node_shutting_down_ = true;
   bg_msg_processor_.join();
+  if (raft_server_) {
+    raft_server_->Shutdown();
+  }
 }
 
 raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {

@@ -1,10 +1,12 @@
 
+#include "raft_server.h"
+
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "raft_server.h"
+#include "call_data.h"
 #include "utils/utils.h"
 #include "utils/logger.h"
 
@@ -13,10 +15,6 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 
 raft::RaftServer::~RaftServer() {
-  if (bg_runner_) {
-    Logger::Log(Utils::StringFormat("Shutting down server on %s", addr_.ToString().c_str()));
-    bg_runner_->Shutdown();
-  }
 }
 
 raft::Status raft::RaftServer::GetClientAddress(ServerContext* context, NodeAddress& out_addr) {
@@ -29,57 +27,66 @@ raft::Status raft::RaftServer::GetClientAddress(ServerContext* context, NodeAddr
   return NodeAddress::ParseNodeAddress(Utils::StringFormat("%s:%s", res[1].c_str(), res[2].c_str()), out_addr);
 }
 
-grpc::Status raft::RaftServer::CallToCluster(ServerContext* context, const raft::ClientRequest* request,
-    raft::ClientResponse* reply) {
-  std::string prefix("Hello ");
-  reply->set_message(prefix + request->message());
-  return grpc::Status::OK;
-}
-
-grpc::Status raft::RaftServer::AskForVote(ServerContext* context, const raft::VoteRequest* request,
-    raft::GeneralResponse* reply) {
-  NodeAddress addr;
-  Status s = GetClientAddress(context, addr);
-  if (!s.ok()) {
-    return grpc::Status(grpc::StatusCode::UNKNOWN, "invalid client ip");
-  }
-  auto msg = new VoteRequestMessage(addr, request->node_name(), request->cur_term(), request->cur_index());
-  callback_(msg);
-  return grpc::Status::OK;
-}
-
-grpc::Status raft::RaftServer::VoteForElection(ServerContext* context, const raft::VoteInfo* vote,
-    raft::GeneralResponse* reply) {
-  return grpc::Status::OK;
-}
-
-grpc::Status raft::RaftServer::ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
-    raft::GeneralResponse* reply) {
-  return grpc::Status::OK;
-}
-
 raft::Status raft::RaftServer::Start() {
   std::string server_address(addr_.ToString());
 
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-  // Register "service" as the instance through which we'll communicate with
-  // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterService(this);
+  // Register "service_" as the instance through which we'll communicate with
+  // clients. In this case it corresponds to an *asynchronous* service.
+  builder.RegisterService(&async_service_);
+  // Get hold of the completion queue used for the asynchronous communication
+  // with the gRPC runtime.
+  async_cq_ = builder.AddCompletionQueue();
   // Finally assemble the server.
-  bg_runner_ = builder.BuildAndStart();
-  if (!bg_runner_) {
+  async_server_ = builder.BuildAndStart();
+  std::cout << "Server listening on " << server_address << std::endl;
+
+  if (!async_server_) {
     return Status::Error(Utils::StringFormat("failed to start raft server on %s", server_address.c_str()));
   }
   Logger::Log(Utils::StringFormat("Server listening on %s", server_address.c_str()));
 
-  // Wait for the server to shutdown. Note that some other thread must be
-  // responsible for shutting down the server for this call to ever return.
-  //server->Wait();
+  // Proceed to the server's main loop.
+  bg_handler_ = std::thread(&RaftServer::HandleRpcs, this);
   return Status::OK();
 }
 
+void raft::RaftServer::HandleRpcs() {
+  // Spawn a new CallData instance to serve new clients.
+  CallData data(&async_service_, async_cq_.get());
+  new ClientCall(&data);
+  new ElectionCall(&data);
+  new ReplicateCall(&data);
+  void* tag;  // uniquely identifies a request.
+  bool ok = false;
+  while (true) {
+    if (is_server_shutting_down_) {
+      break;
+    }
+    // Block waiting to read the next event from the completion queue. The
+    // event is uniquely identified by its tag, which in this case is the
+    // memory address of a CallData instance.
+    // The return value of Next should always be checked. This return value
+    // tells us whether there is any kind of event or cq_ is shutting down.
+    GPR_ASSERT(async_cq_->Next(&tag, &ok));
+    static_cast<RemoteCall*>(tag)->Proceed(ok);
+  }
+}
+
+raft::Status raft::RaftServer::Shutdown() {
+  if (async_cq_) {
+    async_cq_->Shutdown();
+  }
+  if (async_server_) {
+    Logger::Log(Utils::StringFormat("Shutting down server on %s", addr_.ToString().c_str()));
+    async_server_->Shutdown();
+  }
+  is_server_shutting_down_ = true;
+  bg_handler_.join();
+  return Status::OK();
+}
 /*
 int main(int argc, char** argv) {
   RunServer();

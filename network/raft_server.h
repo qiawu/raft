@@ -6,38 +6,34 @@
 #include <memory>
 #include <string>
 #include <functional>
-
+#include <thread>
+#include <atomic>
 #include <grpcpp/grpcpp.h>
 
 #include "network/raft.grpc.pb.h"
 #include "node_address.h"
 #include "message.h"
 
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-
 namespace raft {
   // Logic and data behind the server's behavior.
-  class RaftServer final : public raft::RaftService::Service {
+  class RaftServer {
     public:
-      RaftServer(const NodeAddress& addr, std::function<Status(Message*)> callback): addr_(addr), callback_(callback) {}
+      RaftServer(const NodeAddress& addr, std::function<Status(Message*)> callback): addr_(addr), callback_(callback), is_server_shutting_down_(false) {}
       ~RaftServer();
       Status Start();
-      grpc::Status CallToCluster(ServerContext* context, const raft::ClientRequest* request,
-          raft::ClientResponse* reply) override;
-      grpc::Status AskForVote(ServerContext* context, const raft::VoteRequest* request,
-          raft::GeneralResponse* reply) override;
-      grpc::Status VoteForElection(ServerContext* context, const raft::VoteInfo* vote,
-          raft::GeneralResponse* reply) override;
-      grpc::Status ReplicateLogEntry(ServerContext* context, const raft::LogEntry* entry,
-          raft::GeneralResponse* reply) override;
+      Status Shutdown();
     private:
-      Status GetClientAddress(ServerContext* context, NodeAddress& out_addr);
+      Status GetClientAddress(grpc::ServerContext* context, NodeAddress& out_addr);
+      void HandleRpcs();
 
       NodeAddress addr_;
       std::function<Status(Message*)> callback_;
-      std::unique_ptr<Server> bg_runner_;
+
+      RaftService::AsyncService async_service_;
+      std::unique_ptr<grpc::Server> async_server_;
+      std::unique_ptr<grpc::ServerCompletionQueue> async_cq_;
+      std::thread bg_handler_;
+      std::atomic<bool> is_server_shutting_down_;
   };
 
 }

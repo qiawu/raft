@@ -5,8 +5,8 @@ raft::Status raft::FollowerHandler::Init() {
   return Status::OK();
 }
 
-raft::Status raft::FollowerHandler::HandleMessage() {
-  return Status::OK();
+raft::Message raft::FollowerHandler::HandleMessage(const Message& req) {
+  return GeneralMessage("");
 }
 
 raft::FollowerHandler::~FollowerHandler() {

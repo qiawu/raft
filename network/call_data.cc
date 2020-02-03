@@ -8,11 +8,11 @@ raft::ClientCall::ClientCall(CallData* data) : RemoteCall(data), responder_(&ctx
       this);
 }
 
-void raft::ClientCall::NotifyCaller(Message* reply_wrapper) {
+void raft::ClientCall::Callback(const Message& reply_wrapper) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
-  reply_.set_message(reply_wrapper->msg_);
+  reply_.set_message(reply_wrapper.msg_);
   status_ = FINISH;
   responder_.Finish(reply_, grpc::Status::OK, this);
 }
@@ -29,7 +29,7 @@ void raft::ClientCall::Proceed(bool ok) {
       }
       // The actual processing.
       req_wrapper_ = new ClientRequestMessage(request_.message());
-      data_->handle_func_(req_wrapper_, std::bind(&ClientCall::NotifyCaller, this, std::placeholders::_1));
+      data_->handle_func_(req_wrapper_, std::bind(&ClientCall::Callback, this, std::placeholders::_1));
       break;
 
     case FINISH:
@@ -45,7 +45,7 @@ raft::ElectionCall::ElectionCall(CallData* data) : RemoteCall(data), responder_(
       this);
 }
 
-void raft::ElectionCall::NotifyCaller(Message* resp) {
+void raft::ElectionCall::Callback(const Message& resp) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
@@ -83,7 +83,7 @@ raft::ReplicateCall::ReplicateCall(CallData* data) : RemoteCall(data), responder
       this);
 }
 
-void raft::ReplicateCall::NotifyCaller(Message* resp) {
+void raft::ReplicateCall::Callback(const Message& resp) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.

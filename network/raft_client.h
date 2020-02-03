@@ -9,41 +9,45 @@
 #include <grpcpp/grpcpp.h>
 
 #include "network/raft.grpc.pb.h"
+#include "call_data.h"
+#include "message.h"
 
 namespace raft {
+  struct AsyncClientCall {
+    grpc::ClientContext context_;
+    grpc::Status status_;
+    ResponseCBFunc cb_;
+  };
+
+  struct AsyncClusterClientCall: public AsyncClientCall {
+    ClientResponse reply_;
+  };
+  struct AsyncVoteClientCall: public AsyncClientCall {
+    VoteResponse reply_;
+  };
+  struct AsyncReplicateClientCall: public AsyncClientCall {
+    ReplicateResponse reply_;
+  };
+
   class RaftClient {
    public:
-    RaftClient(std::shared_ptr<grpc::Channel> channel);
+    RaftClient(const NodeAddress& server_addr);
 
-    // Assembles the client's payload, sends it and presents the response back
-    // from the server.
-    void AsyncSendRequest(const std::string& user);
+    void AsyncCallToCluster(const ClientRequestMessage& req, ResponseCBFunc cb);
+    void AsyncAskForVote(const VoteRequestMessage& req, ResponseCBFunc cb);
+    void AsyncReplicateLogEntry(const AppendEntryMessage& req, ResponseCBFunc cb);
 
     void AsyncCompleteRpc();
 
   private:
-    // struct for keeping state and data information
-    struct AsyncClientCall {
-        // Container for the data we expect from the server.
-        ClientResponse reply_;
-
-        // Context for the client. It could be used to convey extra information to
-        // the server and/or tweak certain RPC behaviors.
-        grpc::ClientContext context_;
-
-        // Storage for the status of the RPC upon completion.
-        grpc::Status status_;
-
-        std::unique_ptr<grpc::ClientAsyncResponseReader<ClientResponse>> response_reader_;
-    };
-
     // Out of the passed in Channel comes the stub, stored here, our view of the
     // server's exposed services.
     std::unique_ptr<RaftService::Stub> stub_;
 
     // The producer-consumer queue we use to communicate asynchronously with the
     // gRPC runtime.
-    grpc::CompletionQueue cq_;
+    // make it static so that all connections can share the same queue
+    static grpc::CompletionQueue cq_;
   };
 
 }

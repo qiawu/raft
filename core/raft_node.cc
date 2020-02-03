@@ -4,6 +4,7 @@
 #include <functional>
 
 #include "utils/configuration.h"
+#include "candidate_handler.h"
 
 raft::RaftNode::~RaftNode() {
   is_node_shutting_down_ = true;
@@ -18,9 +19,22 @@ raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
   if (!s.ok()) {
     return s;
   }
-  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::SubmitMessage, this, std::placeholders::_1, std::placeholders::_2)));
-  raft_server_->Start();
-  bg_msg_processor_ = std::thread(&RaftNode::ProcessMessages, this);
+  s = InitReplicateLog();
+  if (!s.ok()) {
+    return s;
+  }
+  s = InitHandler();
+  if (!s.ok()) {
+    return s;
+  }
+  s = StartServer();
+  if (!s.ok()) {
+    return s;
+  }
+  s = StartMessageProcessor();
+  if (!s.ok()) {
+    return s;
+  }
   return s;
 }
 
@@ -49,6 +63,25 @@ raft::Status raft::RaftNode::LoadConf(const std::string& conf_path) {
   }
 }
 
+raft::Status raft::RaftNode::InitReplicateLog() {
+  return log_manager_.Init();
+}
+
+raft::Status raft::RaftNode::InitHandler() {
+  handler_ = std::unique_ptr<RaftHandler>(new CandidateHandler(this, &log_manager_));
+  return handler_->Init();
+}
+
+raft::Status raft::RaftNode::StartServer() {
+  raft_server_ = std::unique_ptr<RaftServer>(new RaftServer(node_list_[local_name_], std::bind(&RaftNode::SubmitMessage, this, std::placeholders::_1, std::placeholders::_2)));
+  return raft_server_->Start();
+}
+
+raft::Status raft::RaftNode::StartMessageProcessor() {
+  bg_msg_processor_ = std::thread(&RaftNode::ProcessMessages, this);
+  return Status::OK();
+}
+
 void raft::RaftNode::ProcessMessages() {
   const int max_wait_time = 1000;
   while(true) {
@@ -60,7 +93,7 @@ void raft::RaftNode::ProcessMessages() {
     if (has_val) {
       Message* req = item.msg_;
       Message resp = HandleMessage(*req);
-      item.cb_(&resp);
+      item.cb_(resp);
     }
   }
 }
@@ -72,15 +105,15 @@ raft::Status raft::RaftNode::SubmitMessage(Message* msg, ResponseCBFunc cb) {
 }
 
 raft::Message raft::RaftNode::HandleMessage(const Message& req) {
-  return Message("done");
+  return GeneralMessage("done");
 }
 
-raft::Status raft::RaftNode::SendMessage(const NodeIdentify& receiver, uint32_t sec_timeout, uint32_t retry_times) {
+raft::Status raft::RaftNode::SwitchMemship(HandlerType tgt) {
+
   return Status::OK();
-
 }
 
-raft::Status raft::RaftNode::SwitchMemship(HandlerType src, HandlerType tgt) {
-  return Status::OK();
-
+uint32_t raft::RaftNode::GetMajority() {
+  return node_list_.size()/2 + 1;
 }
+

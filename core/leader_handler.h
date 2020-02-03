@@ -9,9 +9,9 @@ namespace raft {
 
   class LeaderHandler : public RaftHandler {
     public:
-      LeaderHandler(RaftNode* node): RaftHandler(node, HandlerType::Leader) {}
+      LeaderHandler(RaftNode* node, ReplicateLogManager* log_manager): RaftHandler(node, log_manager, HandlerType::Leader) {}
       Status Init() override;
-      Status HandleMessage() override;
+      Message HandleMessage(const Message& req) override;
       ~LeaderHandler();
 
     protected:

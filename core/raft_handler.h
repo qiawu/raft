@@ -4,7 +4,9 @@
 
 #include <memory>
 
+#include "replicate_log_manager.h"
 #include "utils/status.h"
+#include "network/message.h"
 
 namespace raft {
   class RaftNode;
@@ -16,18 +18,20 @@ namespace raft {
   };
   class RaftHandler {
     public:
-      RaftHandler(RaftNode* node, HandlerType type);
+      RaftHandler(RaftNode* node, ReplicateLogManager* log_manager, HandlerType type);
       virtual Status Init() = 0;
-      virtual Status HandleMessage() = 0;
+      virtual Message HandleMessage(const Message& req) = 0;
       virtual ~RaftHandler();
       
       HandlerType GetType() { return type_; }
 
+      static const uint32_t ElectionMillSecTimeOut = 150;
     protected:
       virtual Status AddReplicateLog() = 0;
       virtual Status CommitReplicateLog() = 0;
-      HandlerType type_;
       RaftNode* host_node_;
+      ReplicateLogManager* log_manager_;
+      HandlerType type_;
   };
 }
 

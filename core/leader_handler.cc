@@ -5,8 +5,8 @@ raft::Status raft::LeaderHandler::Init() {
   return Status::OK();
 }
 
-raft::Status raft::LeaderHandler::HandleMessage() {
-  return Status::OK();
+raft::Message raft::LeaderHandler::HandleMessage(const Message& req) {
+  return GeneralMessage("");
 }
 
 raft::LeaderHandler::~LeaderHandler() {

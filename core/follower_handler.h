@@ -9,9 +9,9 @@ namespace raft {
 
   class FollowerHandler: public RaftHandler {
     public:
-      FollowerHandler(RaftNode* node): RaftHandler(node, HandlerType::Follower) {}
+      FollowerHandler(RaftNode* node, ReplicateLogManager* log_manager): RaftHandler(node, log_manager, HandlerType::Follower) {}
       Status Init() override;
-      Status HandleMessage() override;
+      Message HandleMessage(const Message& req) override;
       ~FollowerHandler();
 
     protected:

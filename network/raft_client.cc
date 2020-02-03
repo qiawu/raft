@@ -22,6 +22,9 @@
 
 #include "raft_client.h"
 
+#include "utils/logger.h"
+#include "utils/utils.h"
+
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
@@ -29,33 +32,44 @@ using raft::ClientRequest;
 using raft::ClientResponse;
 using raft::RaftService;
 
-raft::RaftClient::RaftClient(std::shared_ptr<Channel> channel)
-      : stub_(RaftService::NewStub(channel)) {}
+grpc::CompletionQueue raft::RaftClient::cq_;
 
-  // Assembles the client's payload, sends it and presents the response back
-  // from the server.
-void raft::RaftClient::AsyncSendRequest(const std::string& user) {
-  // Data we are sending to the server.
+raft::RaftClient::RaftClient(const NodeAddress& server_addr)
+  : stub_(RaftService::NewStub(grpc::CreateChannel(server_addr.ToString(), grpc::InsecureChannelCredentials()))) {
+  }
+
+void raft::RaftClient::AsyncCallToCluster(const ClientRequestMessage& req, ResponseCBFunc cb) {
   ClientRequest request;
-  request.set_message(user);
+  request.set_message(req.msg_);
 
-  // Call object to store rpc data
-  AsyncClientCall* call = new AsyncClientCall;
+  AsyncClusterClientCall* call = new AsyncClusterClientCall();
+  call->cb_ = cb;
+  auto response_reader = stub_->PrepareAsyncCallToCluster(&call->context_, request, &cq_);
+  response_reader->StartCall();
+  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
+}
 
-  // stub_->PrepareAsyncSayHello() creates an RPC object, returning
-  // an instance to store in "call" but does not actually start the RPC
-  // Because we are using the asynchronous API, we need to hold on to
-  // the "call" instance in order to get updates on the ongoing RPC.
-  call->response_reader_ =
-    stub_->PrepareAsyncCallToCluster(&call->context_, request, &cq_);
+void raft::RaftClient::AsyncAskForVote(const VoteRequestMessage& req, ResponseCBFunc cb) {
+  VoteRequest request;
+  request.set_node_name(req.node_name_);
+  request.set_cur_term(req.cur_term_);
+  request.set_cur_index(req.cur_index_);
 
-  // StartCall initiates the RPC call
-  call->response_reader_->StartCall();
+  AsyncVoteClientCall* call = new AsyncVoteClientCall();
+  call->cb_ = cb;
+  auto response_reader = stub_->PrepareAsyncAskForVote(&call->context_, request, &cq_);
+  response_reader->StartCall();
+  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
+}
 
-  // Request that, upon completion of the RPC, "reply" be updated with the
-  // server's response; "status" with the indication of whether the operation
-  // was successful. Tag the request with the memory address of the call object.
-  call->response_reader_->Finish(&call->reply_, &call->status_, (void*)call);
+void raft::RaftClient::AsyncReplicateLogEntry(const AppendEntryMessage& req, ResponseCBFunc cb) {
+  ReplicateRequest request;
+
+  AsyncReplicateClientCall* call = new AsyncReplicateClientCall();
+  call->cb_ = cb;
+  auto response_reader = stub_->PrepareAsyncReplicateLogEntry(&call->context_, request, &cq_);
+  response_reader->StartCall();
+  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
 }
 
 // Loop while listening for completed responses.
@@ -73,10 +87,12 @@ void raft::RaftClient::AsyncCompleteRpc() {
     // corresponds solely to the request for updates introduced by Finish().
     GPR_ASSERT(ok);
 
-    if (call->status_.ok())
-      std::cout << "Greeter received: " << call->reply_.message() << std::endl;
-    else
-      std::cout << "RPC failed" << std::endl;
+    if (call->status_.ok()) {
+      //Logger::Log(Utils::StringFormat("Greeter received: ", call->reply_.message().c_str()));
+      Logger::Log("RPC failed");
+    } else {
+      Logger::Log("RPC failed");
+    }
 
     // Once we're complete, deallocate the call object.
     delete call;

@@ -1,10 +1,6 @@
 
 #include "replicate_log_manager.h"
 
-raft::ReplicateLogManager::ReplicateLogManager() {
-
-}
-
 raft::Status raft::ReplicateLogManager::Init() {
   return Status::OK();
 
@@ -19,21 +15,21 @@ raft::Status raft::ReplicateLogManager::CommitLog() {
 
 }
 
-bool raft::ReplicateLogManager::IsMoreUpdateToDate() {
+bool raft::ReplicateLogManager::IsMoreUpdateToDate(LogEntryPos new_pos) {
   return true;
 
 }
 
 raft::LogEntryPos raft::ReplicateLogManager::GetCurLogEntryPos() {
-  return LogEntryPos();
+  return cur_;
 
 }
 raft::LogEntryPos raft::ReplicateLogManager::GetPrevLogEntryPos() {
-  return LogEntryPos();
+  return cur_;
 
 }
 raft::LogEntryPos raft::ReplicateLogManager::GetLastCommittedLogEntryPos() {
-  return LogEntryPos();
+  return cur_;
 
 }
 

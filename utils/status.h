@@ -8,11 +8,13 @@ namespace raft {
     OK,
     ERROR,
     INVALID_FORMAT,
-    INVALID_ARG
+    INVALID_ARG,
+    REJECT
   };
 
   class Status {
     public:
+      Status(): code_(Code::OK), msg_("") {}
       Status(Code c, const std::string& msg);
       bool ok();
       std::string ToString();
@@ -20,6 +22,7 @@ namespace raft {
       static Status Error(const std::string& msg);
       static Status InvalidFormat(const std::string& msg);
       static Status InvalidArg(const std::string& msg);
+      static Status RejectRequest(const std::string& msg);
     private:
       Code code_;
       std::string msg_;

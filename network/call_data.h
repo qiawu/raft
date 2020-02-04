@@ -14,13 +14,19 @@ using grpc::ServerCompletionQueue;
 
 namespace raft {
 
-  typedef std::function<void(const Message&)> ResponseCBFunc;
-  typedef std::function<Status(Message* req, ResponseCBFunc resp_cb)> HandleFunc;
+  typedef std::function<void(const Message*)> ResponseCBFunc;
+  typedef std::function<Status(const Message* req, ResponseCBFunc resp_cb)> HandleFunc;
 
   enum CallStatus { REQUEST, FINISH };
 
   struct CallData {
-    CallData(HandleFunc handle_func, RaftService::AsyncService* service, grpc::ServerCompletionQueue* cq) : handle_func_(handle_func), service_(service), cq_(cq) {}
+    CallData(
+        HandleFunc handle_func, 
+        RaftService::AsyncService* service, 
+        grpc::ServerCompletionQueue* cq) : 
+      handle_func_(handle_func), 
+      service_(service), 
+      cq_(cq) {}
     HandleFunc handle_func_;
     RaftService::AsyncService* service_;
     grpc::ServerCompletionQueue* cq_;
@@ -37,7 +43,7 @@ namespace raft {
       // process the message
       virtual void Proceed(bool ok) = 0;
       // invoked after the message is processed
-      virtual void Callback(const Message& reply_wrapper_) = 0;
+      virtual void Callback(const Message* reply_wrapper_) = 0;
 
     protected:
       CallData* data_;
@@ -52,7 +58,7 @@ namespace raft {
     public:
       explicit ClientCall(CallData* data);
       void Proceed(bool ok) override;
-      void Callback(const Message& reply_wrapper_) override;
+      void Callback(const Message* reply_wrapper_) override;
 
     private:
       grpc::Status CallToCluster(ServerContext* context, const raft::ClientRequest* request, raft::ClientResponse* reply);
@@ -69,7 +75,7 @@ namespace raft {
     public:
       explicit ElectionCall(CallData* data);
       void Proceed(bool ok) override;
-      void Callback(const Message& reply_wrapper_) override;
+      void Callback(const Message* reply_wrapper_) override;
 
     private:
       grpc::Status AskForVote();
@@ -86,7 +92,7 @@ namespace raft {
     public:
       explicit ReplicateCall(CallData* data);
       void Proceed(bool ok) override;
-      void Callback(const Message& reply_wrapper_) override;
+      void Callback(const Message* reply_wrapper_) override;
 
     private:
       grpc::Status ReplicateLogEntry();

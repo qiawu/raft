@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 
   for (int i = 0; i < 10; i++) {
     raft::ClientRequestMessage msg("world " + std::to_string(i));
-    client.AsyncCallToCluster(msg, [](const raft::Message&){});  // The actual RPC call!
+    client.AsyncCallToCluster(msg, [](const raft::Message*){});  // The actual RPC call!
   }
 
   std::cout << "Press control-c to quit" << std::endl << std::endl;

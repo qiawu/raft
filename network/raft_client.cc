@@ -34,6 +34,21 @@ using raft::RaftService;
 
 grpc::CompletionQueue raft::RaftClient::cq_;
 
+void raft::AsyncClusterClientCall::OnResponse() {
+  std::unique_ptr<ClientResponseMessage> resp(new ClientResponseMessage(reply_));
+  cb_(resp.get());
+}
+
+void raft::AsyncVoteClientCall::OnResponse() {
+  std::unique_ptr<VoteResponseMessage> resp(new VoteResponseMessage(reply_));
+  cb_(resp.get());
+}
+
+void raft::AsyncReplicateClientCall::OnResponse() {
+  std::unique_ptr<ReplicateResponseMessage> resp(new ReplicateResponseMessage(reply_));
+  cb_(resp.get());
+}
+
 raft::RaftClient::RaftClient(const NodeAddress& server_addr)
   : stub_(RaftService::NewStub(grpc::CreateChannel(server_addr.ToString(), grpc::InsecureChannelCredentials()))) {
   }
@@ -42,7 +57,7 @@ void raft::RaftClient::AsyncCallToCluster(const ClientRequestMessage& req, Respo
   ClientRequest request;
   request.set_message(req.msg_);
 
-  AsyncClusterClientCall* call = new AsyncClusterClientCall();
+  AsyncClusterClientCall* call = new AsyncClusterClientCall(cb);
   call->cb_ = cb;
   auto response_reader = stub_->PrepareAsyncCallToCluster(&call->context_, request, &cq_);
   response_reader->StartCall();
@@ -55,18 +70,17 @@ void raft::RaftClient::AsyncAskForVote(const VoteRequestMessage& req, ResponseCB
   request.set_cur_term(req.cur_term_);
   request.set_cur_index(req.cur_index_);
 
-  AsyncVoteClientCall* call = new AsyncVoteClientCall();
+  AsyncVoteClientCall* call = new AsyncVoteClientCall(cb);
   call->cb_ = cb;
   auto response_reader = stub_->PrepareAsyncAskForVote(&call->context_, request, &cq_);
   response_reader->StartCall();
   response_reader->Finish(&call->reply_, &call->status_, (void*)call);
 }
 
-void raft::RaftClient::AsyncReplicateLogEntry(const AppendEntryMessage& req, ResponseCBFunc cb) {
+void raft::RaftClient::AsyncReplicateLogEntry(const ReplicateRequestMessage& req, ResponseCBFunc cb) {
   ReplicateRequest request;
 
-  AsyncReplicateClientCall* call = new AsyncReplicateClientCall();
-  call->cb_ = cb;
+  AsyncReplicateClientCall* call = new AsyncReplicateClientCall(cb);
   auto response_reader = stub_->PrepareAsyncReplicateLogEntry(&call->context_, request, &cq_);
   response_reader->StartCall();
   response_reader->Finish(&call->reply_, &call->status_, (void*)call);
@@ -88,10 +102,9 @@ void raft::RaftClient::AsyncCompleteRpc() {
     GPR_ASSERT(ok);
 
     if (call->status_.ok()) {
-      //Logger::Log(Utils::StringFormat("Greeter received: ", call->reply_.message().c_str()));
-      Logger::Log("RPC failed");
+      call->OnResponse();
     } else {
-      Logger::Log("RPC failed");
+      Logger::Err("RPC failed");
     }
 
     // Once we're complete, deallocate the call object.

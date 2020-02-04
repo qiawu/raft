@@ -46,7 +46,7 @@ raft::Status raft::RaftServer::Start() {
   if (!async_server_) {
     return Status::Error(Utils::StringFormat("failed to start raft server on %s", server_address.c_str()));
   }
-  Logger::Log(Utils::StringFormat("Server listening on %s", server_address.c_str()));
+  Logger::Info(Utils::StringFormat("Server listening on %s", server_address.c_str()));
 
   // Proceed to the server's main loop.
   bg_handler_ = std::thread(&RaftServer::HandleRpcs, this);
@@ -80,7 +80,7 @@ raft::Status raft::RaftServer::Shutdown() {
     async_cq_->Shutdown();
   }
   if (async_server_) {
-    Logger::Log(Utils::StringFormat("Shutting down server on %s", addr_.ToString().c_str()));
+    Logger::Info(Utils::StringFormat("Shutting down server on %s", addr_.ToString().c_str()));
     async_server_->Shutdown();
   }
   is_server_shutting_down_ = true;

@@ -20,8 +20,8 @@ namespace raft {
   struct QueueItem {
     public:
       QueueItem(): msg_(nullptr), cb_(nullptr) {}
-      QueueItem(Message* msg, ResponseCBFunc cb): msg_(msg), cb_(cb) {}
-      Message* msg_;
+      QueueItem(const Message* msg, ResponseCBFunc cb): msg_(msg), cb_(cb) {}
+      const Message* msg_;
       ResponseCBFunc cb_;
   };
 
@@ -32,9 +32,9 @@ namespace raft {
       Status Initialize(const std::string& conf_path);
       void ProcessMessages();
       // submit to queue
-      Status SubmitMessage(Message* msg, ResponseCBFunc cb);
+      Status SubmitMessage(const Message* msg, ResponseCBFunc cb);
       // this is the only entry to invoke handler
-      Message HandleMessage(const Message& req);
+      Status HandleMessage(const Message* req, ResponseCBFunc cb);
       
       uint32_t GetMajority();
       std::string GetNodeName() {
@@ -49,7 +49,6 @@ namespace raft {
       Status InitHandler();
       Status StartServer();
       Status StartMessageProcessor();
-      Status SwitchMemship(HandlerType tgt);
 
       BlockingQueue<QueueItem> msg_queue_;
       std::thread bg_msg_processor_;

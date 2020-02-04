@@ -6,7 +6,8 @@
 namespace raft {
   class Logger {
     public:
-      static void Log(const std::string& msg);
+      static void Info(const std::string& msg);
+      static void Err(const std::string& msg);
     private:
       Logger() {}
       static std::string GetCurTime();

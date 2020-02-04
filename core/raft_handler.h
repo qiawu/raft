@@ -7,31 +7,33 @@
 #include "replicate_log_manager.h"
 #include "utils/status.h"
 #include "network/message.h"
+#include "network/call_data.h"
 
 namespace raft {
   class RaftNode;
 
-  enum class HandlerType {
-    Leader,
-    Follower,
-    Candidate
-  };
   class RaftHandler {
     public:
-      RaftHandler(RaftNode* node, ReplicateLogManager* log_manager, HandlerType type);
-      virtual Status Init() = 0;
-      virtual Message HandleMessage(const Message& req) = 0;
-      virtual ~RaftHandler();
-      
-      HandlerType GetType() { return type_; }
+      static const uint32_t ElectionMillSecTimeOutMin = 150;
+      static const uint32_t ElectionMillSecTimeOutMax = 300;
 
-      static const uint32_t ElectionMillSecTimeOut = 150;
+      RaftHandler(RaftNode* node, ReplicateLogManager* log_manager, Membership type);
+      virtual ~RaftHandler();
+      virtual Status Init() = 0;
+      Status Handle(const Message* req, ResponseCBFunc cb);
+      uint32_t GenerateRandomElectionTimeout();
+      
+      Membership GetType() { return type_; }
+
     protected:
-      virtual Status AddReplicateLog() = 0;
-      virtual Status CommitReplicateLog() = 0;
+      virtual Status ProcessMessage(const Message* req, ResponseCBFunc cb) = 0;
+      Status SwitchMembership(Membership target, const std::string& reason);
+
       RaftNode* host_node_;
       ReplicateLogManager* log_manager_;
-      HandlerType type_;
+      Membership type_;
+
+      bool is_switching_membership_;
   };
 }
 

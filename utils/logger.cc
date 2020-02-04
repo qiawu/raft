@@ -2,7 +2,11 @@
 #include "logger.h"
 #include <iostream>
 
-void raft::Logger::Log(const std::string& msg) {
+void raft::Logger::Info(const std::string& msg) {
+  std::cout << GetCurTime() << ": " << msg << std::endl;
+}
+
+void raft::Logger::Err(const std::string& msg) {
   std::cout << GetCurTime() << ": " << msg << std::endl;
 }
 

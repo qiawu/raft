@@ -4,6 +4,8 @@
 #include <functional>
 
 #include "utils/configuration.h"
+#include "utils/logger.h"
+#include "utils/utils.h"
 #include "candidate_handler.h"
 
 raft::RaftNode::~RaftNode() {
@@ -91,26 +93,22 @@ void raft::RaftNode::ProcessMessages() {
     QueueItem item;
     bool has_val = msg_queue_.TryWaitAndPop(item, max_wait_time);
     if (has_val) {
-      Message* req = item.msg_;
-      Message resp = HandleMessage(*req);
-      item.cb_(resp);
+      Status s = HandleMessage(item.msg_, item.cb_);
+      if (!s.ok()) {
+        Logger::Err(Utils::StringFormat("failed to handle message: %s", s.ToString().c_str()));
+      }
     }
   }
 }
 
-raft::Status raft::RaftNode::SubmitMessage(Message* msg, ResponseCBFunc cb) {
+raft::Status raft::RaftNode::SubmitMessage(const Message* msg, ResponseCBFunc cb) {
   // TODO: set queue limit
   msg_queue_.Push(QueueItem(msg, cb));
   return Status::OK();
 }
 
-raft::Message raft::RaftNode::HandleMessage(const Message& req) {
-  return GeneralMessage("done");
-}
-
-raft::Status raft::RaftNode::SwitchMemship(HandlerType tgt) {
-
-  return Status::OK();
+raft::Status raft::RaftNode::HandleMessage(const Message* req, ResponseCBFunc cb) {
+  return handler_->Handle(req, cb);
 }
 
 uint32_t raft::RaftNode::GetMajority() {

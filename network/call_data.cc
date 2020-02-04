@@ -8,11 +8,11 @@ raft::ClientCall::ClientCall(CallData* data) : RemoteCall(data), responder_(&ctx
       this);
 }
 
-void raft::ClientCall::Callback(const Message& reply_wrapper) {
+void raft::ClientCall::Callback(const Message* reply_wrapper) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
-  reply_.set_message(reply_wrapper.msg_);
+  reply_.set_message(reply_wrapper->msg_);
   status_ = FINISH;
   responder_.Finish(reply_, grpc::Status::OK, this);
 }
@@ -22,7 +22,7 @@ void raft::ClientCall::Proceed(bool ok) {
     case REQUEST:
       new ClientCall(data_);
       if (!ok) {
-        Logger::Log("Get in REQUEST was not ok. Finishing.");
+        Logger::Err("Get in REQUEST was not ok. Finishing.");
         responder_.FinishWithError(grpc::Status::CANCELLED, this);
         status_ = FINISH;
         break;
@@ -34,7 +34,7 @@ void raft::ClientCall::Proceed(bool ok) {
 
     case FINISH:
       if (!ok)
-        Logger::Log("Get RPC finished unexpectedly");
+        Logger::Err("Get RPC finished unexpectedly");
       delete this;
       break;
   }
@@ -45,7 +45,7 @@ raft::ElectionCall::ElectionCall(CallData* data) : RemoteCall(data), responder_(
       this);
 }
 
-void raft::ElectionCall::Callback(const Message& resp) {
+void raft::ElectionCall::Callback(const Message* resp) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
@@ -58,7 +58,7 @@ void raft::ElectionCall::Proceed(bool ok) {
     case REQUEST:
       new ElectionCall(data_);
       if (!ok) {
-        Logger::Log("Get in REQUEST was not ok. Finishing.");
+        Logger::Err("Get in REQUEST was not ok. Finishing.");
         responder_.FinishWithError(grpc::Status::CANCELLED, this);
         status_ = FINISH;
         break;
@@ -72,7 +72,7 @@ void raft::ElectionCall::Proceed(bool ok) {
 
     case FINISH:
       if (!ok)
-        Logger::Log("Get RPC finished unexpectedly");
+        Logger::Err("Get RPC finished unexpectedly");
       delete this;
       break;
   }
@@ -83,7 +83,7 @@ raft::ReplicateCall::ReplicateCall(CallData* data) : RemoteCall(data), responder
       this);
 }
 
-void raft::ReplicateCall::Callback(const Message& resp) {
+void raft::ReplicateCall::Callback(const Message* resp) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
@@ -96,7 +96,7 @@ void raft::ReplicateCall::Proceed(bool ok) {
     case REQUEST:
       new ReplicateCall(data_);
       if (!ok) {
-        Logger::Log("Get in REQUEST was not ok. Finishing.");
+        Logger::Err("Get in REQUEST was not ok. Finishing.");
         responder_.FinishWithError(grpc::Status::CANCELLED, this);
         status_ = FINISH;
         break;
@@ -110,7 +110,7 @@ void raft::ReplicateCall::Proceed(bool ok) {
 
     case FINISH:
       if (!ok)
-        Logger::Log("Get RPC finished unexpectedly");
+        Logger::Err("Get RPC finished unexpectedly");
       delete this;
       break;
   }

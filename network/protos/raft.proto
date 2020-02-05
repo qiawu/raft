@@ -42,17 +42,18 @@ message ClientResponse {
 
 message VoteRequest {
   string message = 1;
-  string node_name = 2;
+  string leader_cand_name = 2;
   int32 cur_term = 3;
   int32 cur_index = 4;
 }
 
 message VoteResponse {
   string message = 1;
-  string vote_name = 2;
-  int32 vote_term = 3;
-  int32 vote_index = 4;
-  bool grant_or_deny = 5;
+  string leader_cand_name = 2;
+  string voter_name = 3;
+  int32 vote_term = 4;
+  int32 vote_index = 5;
+  bool grant_or_deny = 6;
 }
 
 message ReplicateRequest {

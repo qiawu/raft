@@ -12,9 +12,13 @@ void raft::ClientCall::Callback(const Message* reply_wrapper) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
-  reply_.set_message(reply_wrapper->msg_);
+  const ClientResponseMessage* resp = dynamic_cast<const ClientResponseMessage*>(reply_wrapper);
+  if (!resp) {
+    Logger::Err("failed to cast to ClientResponseMessage");
+    return;
+  }
   status_ = FINISH;
-  responder_.Finish(reply_, grpc::Status::OK, this);
+  responder_.Finish(resp->ToProtoType(), grpc::Status::OK, this);
 }
 
 void raft::ClientCall::Proceed(bool ok) {
@@ -28,7 +32,7 @@ void raft::ClientCall::Proceed(bool ok) {
         break;
       }
       // The actual processing.
-      req_wrapper_ = new ClientRequestMessage(request_.message());
+      req_wrapper_ = new ClientRequestMessage(request_);
       data_->handle_func_(req_wrapper_, std::bind(&ClientCall::Callback, this, std::placeholders::_1));
       break;
 
@@ -45,12 +49,17 @@ raft::ElectionCall::ElectionCall(CallData* data) : RemoteCall(data), responder_(
       this);
 }
 
-void raft::ElectionCall::Callback(const Message* resp) {
+void raft::ElectionCall::Callback(const Message* reply_wrapper) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
+  const VoteResponseMessage* resp = dynamic_cast<const VoteResponseMessage*>(reply_wrapper);
+  if (!resp) {
+    Logger::Err("failed to cast to VoteResponseMessage");
+    return;
+  }
   status_ = FINISH;
-  responder_.Finish(reply_, grpc::Status::OK, this);
+  responder_.Finish(resp->ToProtoType(), grpc::Status::OK, this);
 }
 
 void raft::ElectionCall::Proceed(bool ok) {
@@ -63,11 +72,9 @@ void raft::ElectionCall::Proceed(bool ok) {
         status_ = FINISH;
         break;
       }
-      // And we are done! Let the gRPC runtime know we've finished, using the
-      // memory address of this instance as the uniquely identifying tag for
-      // the event.
-      status_ = FINISH;
-      responder_.Finish(reply_, grpc::Status::OK, this);
+      // The actual processing.
+      req_wrapper_ = new VoteRequestMessage(request_);
+      data_->handle_func_(req_wrapper_, std::bind(&ElectionCall::Callback, this, std::placeholders::_1));
       break;
 
     case FINISH:
@@ -83,12 +90,17 @@ raft::ReplicateCall::ReplicateCall(CallData* data) : RemoteCall(data), responder
       this);
 }
 
-void raft::ReplicateCall::Callback(const Message* resp) {
+void raft::ReplicateCall::Callback(const Message* reply_wrapper) {
   // And we are done! Let the gRPC runtime know we've finished, using the
   // memory address of this instance as the uniquely identifying tag for
   // the event.
+  const ReplicateResponseMessage* resp = dynamic_cast<const ReplicateResponseMessage*>(reply_wrapper);
+  if (!resp) {
+    Logger::Err("failed to cast to ReplicateResponseMessage");
+    return;
+  }
   status_ = FINISH;
-  responder_.Finish(reply_, grpc::Status::OK, this);
+  responder_.Finish(resp->ToProtoType(), grpc::Status::OK, this);
 }
 
 void raft::ReplicateCall::Proceed(bool ok) {
@@ -101,11 +113,9 @@ void raft::ReplicateCall::Proceed(bool ok) {
         status_ = FINISH;
         break;
       }
-      // And we are done! Let the gRPC runtime know we've finished, using the
-      // memory address of this instance as the uniquely identifying tag for
-      // the event.
-      status_ = FINISH;
-      responder_.Finish(reply_, grpc::Status::OK, this);
+      // The actual processing.
+      req_wrapper_ = new ReplicateRequestMessage(request_);
+      data_->handle_func_(req_wrapper_, std::bind(&ReplicateCall::Callback, this, std::placeholders::_1));
       break;
 
     case FINISH:

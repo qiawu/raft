@@ -14,8 +14,8 @@ namespace raft {
 
   class RaftHandler {
     public:
-      static const uint32_t ElectionMillSecTimeOutMin = 150;
-      static const uint32_t ElectionMillSecTimeOutMax = 300;
+      static const uint32_t ElectionMillSecTimeOutMin = 200;
+      static const uint32_t ElectionMillSecTimeOutMax = 800;
 
       RaftHandler(RaftNode* node, ReplicateLogManager* log_manager, Membership type);
       virtual ~RaftHandler();

@@ -6,6 +6,11 @@ raft::Status raft::ReplicateLogManager::Init() {
 
 }
 
+raft::Status raft::ReplicateLogManager::StartNewTerm() {
+  cur_ = cur_.IncreTerm();
+  return Status::OK();
+}
+
 raft::Status raft::ReplicateLogManager::AddLog() {
   return Status::OK();
 

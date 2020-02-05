@@ -16,7 +16,7 @@ int main(int argc, char * argv[]) {
   }
   
   std::cout << "waiting for client" << std::endl;
-  std::cin.get();
+  node.StartServer();
   /*
   raft::Configuration config(argv[1]);
   s = config.Parse();

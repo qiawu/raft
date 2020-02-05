@@ -24,6 +24,7 @@ namespace raft {
       Status CommitLog();
       bool IsMoreUpdateToDate(LogEntryPos new_pos);
 
+      Status StartNewTerm();
       LogEntryPos GetCurLogEntryPos();
       LogEntryPos GetPrevLogEntryPos();
       LogEntryPos GetLastCommittedLogEntryPos();

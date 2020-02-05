@@ -33,7 +33,7 @@ namespace raft {
       RaftService::AsyncService async_service_;
       std::unique_ptr<grpc::Server> async_server_;
       std::unique_ptr<grpc::ServerCompletionQueue> async_cq_;
-      std::thread bg_handler_;
+      //std::thread bg_handler_;
       std::atomic<bool> is_server_shutting_down_;
   };
 

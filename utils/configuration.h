@@ -18,6 +18,7 @@ namespace raft {
       static const std::string kNodeListSectionHeader;
       static const std::string kLocalSectionHeader;
       static const std::string kLocalNamePropertyKey;
+      static const std::string kLocalLogPropertyKey;
 
     private:
       std::string conf_path_;

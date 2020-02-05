@@ -7,6 +7,7 @@
 
 #include "raft_handler.h"
 #include "replicate_log_manager.h"
+#include "network/raft_client.h"
 #include "utils/timer.h"
 
 namespace raft {
@@ -20,6 +21,8 @@ namespace raft {
         vote_for_me_cnt_(0),
         vote_for_other_cnt_(0),
         vote_counter_() {}
+        // TODO: support sharing same queue for all clients
+        //receive_queue_() {}
       Status Init() override;
       ~CandidateHandler();
     protected:
@@ -29,7 +32,9 @@ namespace raft {
     private:
 
       Status StartElection();
-      Status EndElection(LogEntryPos new_term_pos);
+      Status EndElection(bool elect_succeed);
+      Status ResetTimerForElection();
+
       // Someone asks me to vote. 
       // The handler when I got a vote request
       Status OnAskForVote(const Message* req, ResponseCBFunc cb);
@@ -46,6 +51,9 @@ namespace raft {
       std::map<std::string, uint32_t> vote_counter_;
 
       Timer timer_;
+      // TODO: support sharing same queue for all clients
+      // the queue to be shared for all clients sending reqs to other nodes
+      //std::shared_ptr<RaftClientQueue> receive_queue_;
   };
 }
 

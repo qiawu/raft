@@ -4,6 +4,8 @@
 #include <random>
 
 #include "raft_node.h"
+#include "utils/logger.h"
+#include "utils/utils.h"
 
 raft::RaftHandler::RaftHandler(
     RaftNode* node, 
@@ -28,6 +30,7 @@ uint32_t raft::RaftHandler::GenerateRandomElectionTimeout() {
 
 raft::Status raft::RaftHandler::Handle(const Message* req, ResponseCBFunc cb) {
   if (is_switching_membership_) {
+    Logger::Debug(Utils::StringFormat("switching membership, discarding the msg %d", req->type_));
     // discard election timeout message if membership is switched
     if (req->type_ == MessageType::ElectionTimeout) {
       return Status::OK();
@@ -43,9 +46,12 @@ raft::Status raft::RaftHandler::SwitchMembership(Membership target, const std::s
   if (type_ == target) {
     return Status::OK();
   }
+  Logger::Debug(Utils::StringFormat("switch to %d", type_));
+  is_switching_membership_ = true;
   auto req = new MembershipSwitchMessage(reason, target);
   Status s = host_node_->SubmitMessage(req, [=](const Message*) { delete req; });
   if (!s.ok()) {
+    is_switching_membership_ = false;
     return s;
   }
   is_switching_membership_ = true;

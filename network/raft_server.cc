@@ -49,7 +49,9 @@ raft::Status raft::RaftServer::Start() {
   Logger::Info(Utils::StringFormat("Server listening on %s", server_address.c_str()));
 
   // Proceed to the server's main loop.
-  bg_handler_ = std::thread(&RaftServer::HandleRpcs, this);
+  //bg_handler_ = std::thread(&RaftServer::HandleRpcs, this);
+  // block
+  HandleRpcs();
   return Status::OK();
 }
 
@@ -84,7 +86,7 @@ raft::Status raft::RaftServer::Shutdown() {
     async_server_->Shutdown();
   }
   is_server_shutting_down_ = true;
-  bg_handler_.join();
+  //bg_handler_.join();
   return Status::OK();
 }
 /*

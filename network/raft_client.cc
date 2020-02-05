@@ -32,11 +32,31 @@ using raft::ClientRequest;
 using raft::ClientResponse;
 using raft::RaftService;
 
-grpc::CompletionQueue raft::RaftClient::cq_;
+raft::RaftClientQueue::RaftClientQueue() {
+}
+
+raft::RaftClientQueue::~RaftClientQueue() {
+  cq_.Shutdown();
+}
+
+void raft::AsyncClientCall::ResetPrevContext() {
+  context_ = std::unique_ptr<grpc::ClientContext>(new grpc::ClientContext());
+  status_ = std::unique_ptr<grpc::Status>(new grpc::Status());
+}
 
 void raft::AsyncClusterClientCall::OnResponse() {
   std::unique_ptr<ClientResponseMessage> resp(new ClientResponseMessage(reply_));
   cb_(resp.get());
+}
+
+void raft::AsyncClusterClientCall::InvokeCall(std::unique_ptr<RaftService::Stub>& stub, grpc::CompletionQueue& cq) {
+  auto deadline = std::chrono::system_clock::now() +
+    std::chrono::milliseconds(timeout_mill_sec_);
+  context_->set_deadline(deadline);
+
+  auto response_reader = stub->PrepareAsyncCallToCluster(context_.get(), req_, &cq);
+  response_reader->StartCall();
+  response_reader->Finish(&reply_, status_.get(), (void*)this);
 }
 
 void raft::AsyncVoteClientCall::OnResponse() {
@@ -44,46 +64,71 @@ void raft::AsyncVoteClientCall::OnResponse() {
   cb_(resp.get());
 }
 
+void raft::AsyncVoteClientCall::InvokeCall(std::unique_ptr<RaftService::Stub>& stub, grpc::CompletionQueue& cq) {
+  auto deadline = std::chrono::system_clock::now() +
+    std::chrono::milliseconds(timeout_mill_sec_);
+  context_->set_deadline(deadline);
+
+  auto response_reader = stub->PrepareAsyncAskForVote(context_.get(), req_, &cq);
+  response_reader->StartCall();
+  response_reader->Finish(&reply_, status_.get(), (void*)this);
+}
+
 void raft::AsyncReplicateClientCall::OnResponse() {
   std::unique_ptr<ReplicateResponseMessage> resp(new ReplicateResponseMessage(reply_));
   cb_(resp.get());
 }
 
-raft::RaftClient::RaftClient(const NodeAddress& server_addr)
-  : stub_(RaftService::NewStub(grpc::CreateChannel(server_addr.ToString(), grpc::InsecureChannelCredentials()))) {
+void raft::AsyncReplicateClientCall::InvokeCall(std::unique_ptr<RaftService::Stub>& stub, grpc::CompletionQueue& cq) {
+  auto deadline = std::chrono::system_clock::now() +
+    std::chrono::milliseconds(timeout_mill_sec_);
+  context_->set_deadline(deadline);
+
+  auto response_reader = stub->PrepareAsyncReplicateLogEntry(context_.get(), req_, &cq);
+  response_reader->StartCall();
+  response_reader->Finish(&reply_, status_.get(), (void*)this);
+}
+
+raft::RaftClient::RaftClient(const NodeAddress& server_addr, uint32_t timeout_mill_sec, uint32_t max_retry_times): 
+  server_addr_(server_addr),
+  stub_(RaftService::NewStub(grpc::CreateChannel(server_addr.ToString(), grpc::InsecureChannelCredentials()))),
+  timeout_mill_sec_(timeout_mill_sec),
+  max_retry_times_(max_retry_times) {
+    bg_runner_ = std::thread(&RaftClient::AsyncCompleteRpc, this);
   }
 
-void raft::RaftClient::AsyncCallToCluster(const ClientRequestMessage& req, ResponseCBFunc cb) {
-  ClientRequest request;
-  request.set_message(req.msg_);
+/*
+raft::RaftClient::RaftClient(
+    const NodeAddress& server_addr, 
+    std::shared_ptr<RaftClientQueue> custom_queue, 
+    uint32_t timeout_mill_sec,
+    uint32_t max_retry_times): 
+  server_addr_(server_addr),
+  stub_(RaftService::NewStub(grpc::CreateChannel(server_addr.ToString(), grpc::InsecureChannelCredentials()))),
+  queue_(custom_queue),
+  timeout_mill_sec_(timeout_mill_sec),
+  max_retry_times_(max_retry_times) {
+  }
+  */
 
-  AsyncClusterClientCall* call = new AsyncClusterClientCall(cb);
-  call->cb_ = cb;
-  auto response_reader = stub_->PrepareAsyncCallToCluster(&call->context_, request, &cq_);
-  response_reader->StartCall();
-  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
+raft::RaftClient::~RaftClient() {
+  cq_.Shutdown();
+  bg_runner_.join();
+}
+
+void raft::RaftClient::AsyncCallToCluster(const ClientRequestMessage& req, ResponseCBFunc cb) {
+  AsyncClusterClientCall* call = new AsyncClusterClientCall(req, cb, timeout_mill_sec_, max_retry_times_);
+  call->InvokeCall(stub_, cq_);
 }
 
 void raft::RaftClient::AsyncAskForVote(const VoteRequestMessage& req, ResponseCBFunc cb) {
-  VoteRequest request;
-  request.set_node_name(req.node_name_);
-  request.set_cur_term(req.cur_term_);
-  request.set_cur_index(req.cur_index_);
-
-  AsyncVoteClientCall* call = new AsyncVoteClientCall(cb);
-  call->cb_ = cb;
-  auto response_reader = stub_->PrepareAsyncAskForVote(&call->context_, request, &cq_);
-  response_reader->StartCall();
-  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
+  AsyncVoteClientCall* call = new AsyncVoteClientCall(req, cb, timeout_mill_sec_, max_retry_times_);
+  call->InvokeCall(stub_, cq_);
 }
 
 void raft::RaftClient::AsyncReplicateLogEntry(const ReplicateRequestMessage& req, ResponseCBFunc cb) {
-  ReplicateRequest request;
-
-  AsyncReplicateClientCall* call = new AsyncReplicateClientCall(cb);
-  auto response_reader = stub_->PrepareAsyncReplicateLogEntry(&call->context_, request, &cq_);
-  response_reader->StartCall();
-  response_reader->Finish(&call->reply_, &call->status_, (void*)call);
+  AsyncReplicateClientCall* call = new AsyncReplicateClientCall(req, cb, timeout_mill_sec_, max_retry_times_);
+  call->InvokeCall(stub_, cq_);
 }
 
 // Loop while listening for completed responses.
@@ -91,6 +136,7 @@ void raft::RaftClient::AsyncReplicateLogEntry(const ReplicateRequestMessage& req
 void raft::RaftClient::AsyncCompleteRpc() {
   void* got_tag;
   bool ok = false;
+  const auto pause_time_mill_sec = std::chrono::milliseconds(1000);
 
   // Block until the next result is available in the completion queue "cq".
   while (cq_.Next(&got_tag, &ok)) {
@@ -101,14 +147,24 @@ void raft::RaftClient::AsyncCompleteRpc() {
     // corresponds solely to the request for updates introduced by Finish().
     GPR_ASSERT(ok);
 
-    if (call->status_.ok()) {
+    if (call->status_->ok()) {
       call->OnResponse();
     } else {
-      Logger::Err("RPC failed");
+      if (call->left_retry_times_ > 0) {
+        std::this_thread::sleep_for(pause_time_mill_sec);
+        call->left_retry_times_--;
+        Logger::Debug(Utils::StringFormat("request retrying remaining %d times, %d timeout", call->left_retry_times_, call->timeout_mill_sec_));
+        call->ResetPrevContext();
+        call->InvokeCall(stub_, cq_);
+        continue;
+      } else {
+        Logger::Debug(Utils::StringFormat("request failed after retrying %d times", max_retry_times_));
+      }
     }
 
     // Once we're complete, deallocate the call object.
     delete call;
   }
+  Logger::Debug(Utils::StringFormat("client binding to %s is exited", server_addr_.ToString().c_str()));
 }
 

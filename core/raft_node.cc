@@ -7,6 +7,8 @@
 #include "utils/logger.h"
 #include "utils/utils.h"
 #include "candidate_handler.h"
+#include "follower_handler.h"
+#include "leader_handler.h"
 
 raft::RaftNode::~RaftNode() {
   is_node_shutting_down_ = true;
@@ -26,10 +28,6 @@ raft::Status raft::RaftNode::Initialize(const std::string& conf_path) {
     return s;
   }
   s = InitHandler();
-  if (!s.ok()) {
-    return s;
-  }
-  s = StartServer();
   if (!s.ok()) {
     return s;
   }
@@ -108,6 +106,28 @@ raft::Status raft::RaftNode::SubmitMessage(const Message* msg, ResponseCBFunc cb
 }
 
 raft::Status raft::RaftNode::HandleMessage(const Message* req, ResponseCBFunc cb) {
+  if (req->type_ == MessageType::MembershipSwitch) {
+    const MembershipSwitchMessage* msg = dynamic_cast<const MembershipSwitchMessage*>(req);
+    if (!msg) {
+      return Status::InvalidArg("failed to cast to MembershipSwitchMessage");
+    }
+    Status s;
+    switch (msg->target_) {
+      case Membership::Leader:
+        handler_ = std::unique_ptr<RaftHandler>(new LeaderHandler(this, &log_manager_));
+        break;
+      case Membership::Follower:
+        handler_ = std::unique_ptr<RaftHandler>(new FollowerHandler(this, &log_manager_));
+        break;
+      case Membership::Candidate:
+        handler_ = std::unique_ptr<RaftHandler>(new CandidateHandler(this, &log_manager_));
+        break;
+      default:
+        s = Status::InvalidArg("invalid target handler type");
+        break;
+    }
+    return s;
+  }
   return handler_->Handle(req, cb);
 }
 

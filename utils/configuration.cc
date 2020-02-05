@@ -10,6 +10,7 @@
 const std::string raft::Configuration::kNodeListSectionHeader = "nodelist";
 const std::string raft::Configuration::kLocalSectionHeader = "local";
 const std::string raft::Configuration::kLocalNamePropertyKey = "name";
+const std::string raft::Configuration::kLocalLogPropertyKey = "log";
 
 raft::Status raft::Configuration::Parse() {
   // TODO: handle file exception

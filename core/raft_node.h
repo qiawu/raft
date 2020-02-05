@@ -30,6 +30,7 @@ namespace raft {
       RaftNode(): is_node_shutting_down_(false), handler_(nullptr), raft_server_(nullptr), node_list_(), local_name_() {} 
       ~RaftNode();
       Status Initialize(const std::string& conf_path);
+      Status StartServer();
       void ProcessMessages();
       // submit to queue
       Status SubmitMessage(const Message* msg, ResponseCBFunc cb);
@@ -47,7 +48,6 @@ namespace raft {
       Status LoadConf(const std::string& conf_path);
       Status InitReplicateLog();
       Status InitHandler();
-      Status StartServer();
       Status StartMessageProcessor();
 
       BlockingQueue<QueueItem> msg_queue_;

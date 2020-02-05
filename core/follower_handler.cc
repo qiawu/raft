@@ -2,16 +2,20 @@
 #include "follower_handler.h"
 
 #include "raft_node.h"
+#include "utils/utils.h"
+#include "utils/logger.h"
 
 raft::FollowerHandler::~FollowerHandler() {
   timer_.Stop();
 }
 
 raft::Status raft::FollowerHandler::Init() {
+  /*
   ElectionTimeoutMessage* msg = new ElectionTimeoutMessage("dummy");
   timer_.SetInterval([=](){
       this->host_node_->SubmitMessage(msg, [=](const Message*){ delete msg; });
       }, GenerateRandomElectionTimeout());
+      */
   return Status::OK();
 }
 
@@ -36,6 +40,7 @@ raft::Status raft::FollowerHandler::OnAskForVote(const Message* req, ResponseCBF
   LogEntryPos cur_pos = log_manager_->GetCurLogEntryPos();
   // TODO: check leader heatbeart within timeout before we decide to vote
   if (caller_cur_pos.term_ > cur_pos.term_) {
+    Logger::Debug(Utils::StringFormat("receive vote req in follower, %s", vote_req->ToString().c_str()));
     s = SwitchMembership(Membership::Candidate, "someone start a new election");
     if (!s.ok()) {
       return s;
@@ -46,7 +51,8 @@ raft::Status raft::FollowerHandler::OnAskForVote(const Message* req, ResponseCBF
     std::unique_ptr<Message> resp = std::unique_ptr<Message>(
         new VoteResponseMessage(
           "you have lower term", 
-          vote_req->node_name_, 
+          vote_req->leader_cand_name_, 
+          host_node_->GetNodeName(),
           vote_req->cur_term_, 
           vote_req->cur_index_, 
           false)
